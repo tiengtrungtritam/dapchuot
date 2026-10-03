@@ -1,4 +1,4 @@
-# Đập Chuột – Tiếng Trung Trí Tâm
+# Đập Chuột – Tiếng Trung Tri Tâm
 
 Game đập chuột luyện từ vựng tiếng Trung (Giáo trình HSK và Giáo trình CĐ).
 Toàn bộ game nằm trong một file `index.html`; từ vựng lấy từ Google Sheets.
