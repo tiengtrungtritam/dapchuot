@@ -987,7 +987,8 @@ h2:focus{outline:none}
     const total = settings.time * 1000;
     G = {pool, cfg, total, score:0, combo:0, maxCombo:0, hits:0, wrongs:0, timeouts:0,
          missed:new Map(), tiles:Array(9).fill(null), target:null, targetAt:0, hintShown:false,
-         endAt:performance.now() + total, running:true, spawnTimer:null, tick:null, holding:false, pendingNext:false};
+         endAt:performance.now() + total, running:true, spawnTimer:null, tick:null, holding:false, pendingNext:false,
+         deck:[], requeued:new Set(), seen:new Map(), recent:[], lastTargets:[]};
     cells.forEach(c => {
       clearTimeout(c._t);
       const t = c.querySelector('.tile');
@@ -1038,8 +1039,9 @@ h2:focus{outline:none}
     else {
       const cands = G.pool.filter(w => !matchesTarget(w) && !onBoard.has(w));
       if (!cands.length) return;
-      word = pick(cands);
+      word = freshest(cands);
     }
+    if (word !== G.target) markShown(word);
     const el = cells[idx].querySelector('.tile');
     clearTimeout(cells[idx]._t);
     el.classList.remove('ok','bad');
@@ -1117,9 +1119,51 @@ h2:focus{outline:none}
   const norm = x => String(x).trim().toLowerCase();
   const matchesTarget = w => !!G.target && (w === G.target || norm(answerOf(w)) === norm(answerOf(G.target)) || norm(promptOf(w)) === norm(promptOf(G.target)));
 
+  /* Chống lặp từ:
+     - Từ cần tìm: rút lần lượt từ một "bộ bài" đã xáo; hết bộ mới xáo lại, nên mọi từ đều được hỏi đủ một lượt
+       trước khi có từ nào bị hỏi lại. Từ bị bỏ lỡ (hết giờ) được hỏi lại một lần, cách ít nhất vài từ.
+     - Từ gây nhiễu: ưu tiên từ xuất hiện ít nhất và không vừa mới trồi lên. */
+  function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function refillDeck(){
+    const d = shuffle(G.pool.slice());
+    // vài từ vừa hỏi ở cuối bộ trước không được nằm ngay đầu bộ mới
+    const k = Math.min(3, Math.floor(G.pool.length / 3));
+    const recentT = G.lastTargets.slice(-k);
+    for (let i = 0; i < Math.min(k, d.length); i++){
+      if (!recentT.includes(d[i])) continue;
+      const j = d.findIndex((w, x) => x >= k && !recentT.includes(w));
+      if (j > 0) [d[i], d[j]] = [d[j], d[i]];
+    }
+    G.deck = d; G.requeued.clear();
+  }
+  function requeueMissed(w){
+    if (G.pool.length < 8 || G.requeued.has(w)) return;
+    G.requeued.add(w);
+    const at = Math.min(G.deck.length, 4 + Math.floor(Math.random() * 3));
+    G.deck.splice(at, 0, w);
+  }
+  function freshest(cands){
+    let min = Infinity;
+    cands.forEach(w => { min = Math.min(min, G.seen.get(w) || 0); });
+    const low = cands.filter(w => (G.seen.get(w) || 0) <= min + 1);
+    const notRecent = low.filter(w => !G.recent.includes(w));
+    const pool = notRecent.length ? notRecent : low;
+    const least = pool.filter(w => (G.seen.get(w) || 0) === Math.min(...pool.map(x => G.seen.get(x) || 0)));
+    return pick(Math.random() < 0.75 ? least : pool);
+  }
+  function markShown(w){
+    G.seen.set(w, (G.seen.get(w) || 0) + 1);
+    G.recent.push(w);
+    const keep = Math.max(2, Math.min(8, Math.floor(G.pool.length / 3)));
+    while (G.recent.length > keep) G.recent.shift();
+  }
+
   function nextTarget(){
-    const cands = G.pool.filter(w => w !== G.target);
-    G.target = pick(cands.length ? cands : G.pool);
+    if (!G.deck.length) refillDeck();
+    let next = G.deck.shift();
+    if (G.pool.length > 1 && G.target && next === G.target && G.deck.length){ G.deck.push(next); next = G.deck.shift(); }
+    G.target = next;
+    G.lastTargets.push(next); if (G.lastTargets.length > 6) G.lastTargets.shift();
     G.targetAt = performance.now();
     G.hintShown = false;
     renderPrompt();
@@ -1480,6 +1524,7 @@ h2:focus{outline:none}
     if (age > G.cfg.target){
       G.timeouts++; G.combo = 0;
       noteMissed(G.target);
+      requeueMissed(G.target);
       flashPrompt('bad');
       sound.fx.miss();
       nextTarget();
