@@ -1486,6 +1486,8 @@ h2:focus{outline:none}
   // iPhone/iPad chỉ cho đọc to sau khi người dùng chạm (bấm nút). Lần chạm đầu tiên đọc một câu im lặng
   // để "mở khóa" giọng đọc; sau đó game mới đọc được khi đập chuột.
   let speechPrimed = false, curUtter = null;
+  // iPhone/iPad (kể cả iPad báo là Mac): iOS tạm ngắt nhạc của trang mỗi khi đọc to → xử lý riêng cho mượt
+  const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   function primeSpeech(){
     if (speechPrimed || !settings.speak || settings.muted) return;
     try{
@@ -1547,9 +1549,16 @@ h2:focus{outline:none}
     if (doSpeak){
       speechDone = false;
       sound.duck(true);
-      const started = speak(word.d || word.h, () => { speechDone = true; sound.duck(false); tryEnd(); });
-      if (started) setTimeout(() => { speechDone = true; tryEnd(); }, 5000);       // chốt an toàn nếu trình duyệt không báo "đọc xong"
-      else setTimeout(() => { speechDone = true; tryEnd(); }, est);                // không có giọng đọc: chờ theo ước lượng
+      const say = () => {
+        if (G !== g || !g.running || !g.holding) return;
+        const started = speak(word.d || word.h, () => { speechDone = true; sound.duck(false); tryEnd(); });
+        // chốt an toàn nếu trình duyệt không báo "đọc xong" (đánh thức âm thanh luôn, phòng iPhone)
+        if (started) setTimeout(() => { if (!speechDone){ speechDone = true; sound.speechEnded(); tryEnd(); } }, Math.min(5000, est + 2000));
+        else setTimeout(() => { speechDone = true; tryEnd(); }, est);                // không có giọng đọc: chờ theo ước lượng
+      };
+      // iPhone: để tiếng đập/combo vang hết, nhạc nhỏ dần rồi mới đọc (thay vì bị iOS cắt ngang)
+      if (IS_IOS) sound.beforeSpeech(isComboMilestone(g.combo) ? 700 : 300, say);
+      else say();
     }
     if (minMs > 0) setTimeout(() => { minDone = true; tryEnd(); }, minMs);
     tryEnd();
@@ -1590,11 +1599,49 @@ h2:focus{outline:none}
     const isSpeaking = () => { try{ return !!(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)); }catch(e){ return false; } };
     function revive(){
       if (!ac || ac.state === 'running' || ac.state === 'closed') return;
+      if (quiet && performance.now() < quietUntil) return;     // đang chủ động tạm dừng để đọc (tối đa 6 giây)
       try{ const p = ac.resume(); if (p && p.catch) p.catch(() => {}); }catch(e){}
     }
     // Thử đánh thức nhiều lần (sau khi đọc xong iOS mới trả lại kênh âm thanh)
     let waking = false, broken = false, quietAt = 0, stuckAtDown = false;
-    function speechEnded(){ quietAt = performance.now(); wake(); }
+    // iPhone: tự giảm nhạc về 0 và tạm dừng bộ âm thanh trước khi đọc; đọc xong thì bật lại và nhạc to dần
+    let quiet = false, quietT = 0, quietUntil = 0, fading = false;
+    function beforeSpeech(wait, cb){
+      clearTimeout(quietT);
+      if (!ac || ac.state !== 'running'){ cb(); return; }
+      fading = true; quietUntil = performance.now() + wait + 6000;
+      const t = ac.currentTime;
+      duckG.gain.cancelScheduledValues(t);
+      duckG.gain.setValueAtTime(duckG.gain.value, t);
+      duckG.gain.setTargetAtTime(0, t, Math.max(0.03, wait / 1000 / 4));
+      quietT = setTimeout(() => {
+        quiet = true;
+        let called = false; const go = () => { if (!called){ called = true; cb(); } };
+        try{ const p = ac.suspend(); if (p && p.then) p.then(go, go); else go(); }catch(e){ go(); }
+        setTimeout(go, 150);
+      }, wait);
+    }
+    function fadeIn(){
+      if (!ac) return;
+      const t = ac.currentTime;
+      duckG.gain.cancelScheduledValues(t);
+      duckG.gain.setValueAtTime(0, t);
+      duckG.gain.setTargetAtTime(ducked ? 0.2 : 1, t + 0.03, 0.15);
+    }
+    function speechEnded(){
+      quietAt = performance.now();
+      clearTimeout(quietT);
+      if (quiet || fading){
+        quiet = false; fading = false;
+        if (ac && ac.state === 'running') fadeIn();
+        else if (ac){
+          const once = () => { if (ac && ac.state === 'running'){ ac.removeEventListener('statechange', once); fadeIn(); } };
+          try{ ac.addEventListener('statechange', once); }catch(e){}
+          setTimeout(() => { try{ ac && ac.removeEventListener('statechange', once); }catch(e){} }, 4000);
+        }
+      }
+      wake();
+    }
     function wake(){
       if (waking) return;                // đang có một vòng đánh thức rồi
       waking = true;
@@ -1744,7 +1791,7 @@ h2:focus{outline:none}
       duckG.gain.setTargetAtTime(on ? 0.2 : 1, ac.currentTime, 0.08);
     }
     function resetMusic(){ step = 0; hurry = false; }
-    return {unlock, wake, speechEnded, applyVolumes, fx, music, duck, resetMusic, setHurry(v){ hurry = !!v; }, get on(){ return musOn; }};
+    return {unlock, wake, speechEnded, beforeSpeech, applyVolumes, fx, music, duck, resetMusic, setHurry(v){ hurry = !!v; }, get on(){ return musOn; }};
   })();
   document.addEventListener('pointerdown', () => sound.unlock(false), {capture:true, passive:true});
   ['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, () => sound.unlock(true), {capture:true, passive:true}));
@@ -2226,6 +2273,7 @@ h2:focus{outline:none}
     clearInterval(G.tick); clearTimeout(G.spawnTimer);
     G.tiles.forEach((t, i) => { if (t) hideTile(i); });
     try{ speechSynthesis.cancel(); }catch(e){}
+    sound.speechEnded();
     sound.duck(false); sound.music(false); sound.fx.end();
 
     const attempts = G.hits + G.wrongs + G.timeouts;
