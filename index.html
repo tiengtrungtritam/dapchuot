@@ -110,6 +110,10 @@ dialog .sel select{width:100%}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pane{margin-top:10px}
 .srcbox{margin:0 0 10px}
+.offlist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.offlist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--field);font-size:14px}
+.offlist li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.offlist li small{display:block;color:var(--ink-soft);font-size:12px}
 .srcbox .status{margin-top:4px}
 
 /* hộp cài đặt */
@@ -378,6 +382,7 @@ h2:focus{outline:none}
       <label class="sel" style="margin-bottom:8px"><span>Giáo trình</span><select id="selSrc">
         <option value="hsk">Giáo trình HSK</option>
         <option value="cd">Giáo trình CĐ</option>
+        <option value="off">Giáo trình CĐ Offline</option>
       </select></label>
       <div class="selrow" id="selRow">
         <label class="sel" id="hskWrap"><span>Cấp HSK</span><select id="selHsk"></select></label>
@@ -501,6 +506,13 @@ h2:focus{outline:none}
     <p class="note">Hàng 1 là tiêu đề cột. Giáo trình HSK: <b>hsk, bai, hanzi, pinyin, nghia</b>. Giáo trình CĐ: <b>bai, hanzi, pinyin, nghia</b>. Có thể thêm: ma, vidu, hien (ghi 0 để ẩn từ), doc (cụm từ để máy đọc thay chữ Hán, dùng cho chữ đa âm, vd. 行 → 银行).</p>
     <p class="note">Link chỉ lưu trên máy này. Để mọi máy học viên dùng chung, bấm "Sao chép địa chỉ chia sẻ" rồi gửi địa chỉ đó cho học viên.</p>
 
+    <h3>Giáo trình CĐ Offline (file Excel trên máy)</h3>
+    <p class="note" style="margin:0 0 8px">Chọn file .xlsx (hoặc .csv) trên máy này. Không cần mạng. File có cột <b>bai</b> thì game tách theo bài; file không có cột bai thì cả file là một bài, lấy tên file làm tên bài. Có thể chọn nhiều file cùng lúc. Nạp lại file trùng tên sẽ thay bản cũ.</p>
+    <input type="file" id="offFile" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" multiple aria-label="Chọn file Excel">
+    <p class="status" id="offStatus" role="status"></p>
+    <ul class="offlist" id="offList"></ul>
+    <div class="srow" style="margin-top:4px"><button type="button" class="btn ghost small" id="offClear">Xóa tất cả file đã nạp</button></div>
+
     <h3>Giọng đọc</h3>
     <label class="sel"><span class="sr">Giọng đọc</span><select id="stVoice"></select></label>
     <label class="sl2" style="margin-top:8px"><span>Tốc độ đọc (0.5 = rất chậm, 1 = bình thường)</span>
@@ -618,9 +630,10 @@ h2:focus{outline:none}
   // Khi đưa game lên GitHub: dán link CSV đã "Phát hành lên web" của từng giáo trình vào đây để mọi máy dùng chung.
   // (Hoặc mở trang với ?hsk=<link>&cd=<link>; link dán trong Cài đặt chỉ lưu trên máy đó.)
   const SHEET_LINKS = {hsk:'https://docs.google.com/spreadsheets/d/e/2PACX-1vSMCvpLbhNmhi_s1t13bATS_9SIWPzEdT0lPg8zq2Pla_xLJm10TqlcFfq4CE73IiN5smgWKgxEJR3L/pub?gid=99431854&single=true&output=csv', cd:''};
-  const SRC_IDS = ['hsk', 'cd'];
-  const SRC_NAMES = {hsk:'Giáo trình HSK', cd:'Giáo trình CĐ'};
-  const DEFAULTS = {src:'hsk', links:{hsk:'', cd:''}, pick:{hsk:{hsk:1, lesson:'all'}, cd:{lesson:'all'}},
+  const SRC_IDS = ['hsk', 'cd'];                 // nguồn Google (có link)
+  const ALL_SRC = ['hsk', 'cd', 'off'];          // off = Giáo trình CĐ Offline (file Excel trên máy)
+  const SRC_NAMES = {hsk:'Giáo trình HSK', cd:'Giáo trình CĐ', off:'Giáo trình CĐ Offline'};
+  const DEFAULTS = {src:'hsk', links:{hsk:'', cd:''}, pick:{hsk:{hsk:1, lesson:'all'}, cd:{lesson:'all'}, off:{lesson:'all'}},
     mode:'vi2han', speed:'slow', time:30, speak:true, voice:'', rate:0.85, music:true, sfx:true, musicVol:50, sfxVol:80, muted:false};
   const storedSettings = store.get('zhwhack.settings', {});
   let settings = Object.assign({}, DEFAULTS, storedSettings);
@@ -628,10 +641,10 @@ h2:focus{outline:none}
   if (storedSettings.v !== 2){ settings.speed = DEFAULTS.speed; settings.time = DEFAULTS.time; }
   settings.v = 2;
   settings.links = Object.assign({hsk:'', cd:''}, settings.links);
-  settings.pick = {hsk:Object.assign({hsk:1, lesson:'all'}, settings.pick && settings.pick.hsk), cd:Object.assign({lesson:'all'}, settings.pick && settings.pick.cd)};
+  settings.pick = {hsk:Object.assign({hsk:1, lesson:'all'}, settings.pick && settings.pick.hsk), cd:Object.assign({lesson:'all'}, settings.pick && settings.pick.cd), off:Object.assign({lesson:'all'}, settings.pick && settings.pick.off)};
   if (storedSettings.sheetUrl && !settings.links.hsk) settings.links.hsk = storedSettings.sheetUrl;   // bản cũ chỉ có 1 link
   ['set', 'sheetUrl', 'lessons', 'hsk', 'lesson'].forEach(k => delete settings[k]);
-  if (!SRC_IDS.includes(settings.src)) settings.src = 'hsk';
+  if (!ALL_SRC.includes(settings.src)) settings.src = 'hsk';
   const qp = (() => { try{ return new URLSearchParams(location.search); }catch(e){ return new URLSearchParams(''); } })();
   const queryLink = id => (qp.get(id) || (id === 'hsk' ? qp.get('sheet') : '') || '').trim();
   const curPick = () => settings.pick[settings.src];
@@ -710,7 +723,7 @@ h2:focus{outline:none}
     const li = lessonInfo(bai);
     return {hsk, lk:li.key, ll:li.label, ln:li.num, h:r.h, p:r.p, v:r.v, id:r.id || r.h, d:r.d || ''};
   }
-  const catalogRows = () => sheets[settings.src].rows;
+  const catalogRows = () => settings.src === 'off' ? offline.rows : sheets[settings.src].rows;
   const usesHsk = () => settings.src === 'hsk';
 
   function vocabWords(){
@@ -729,6 +742,10 @@ h2:focus{outline:none}
     sel.appendChild(o);
   }
   function sourceNotice(){
+    if (settings.src === 'off'){
+      if (!offline.files.length) return {t:'Chưa có file Excel cho Giáo trình CĐ Offline. Giáo viên bấm bánh răng → Nguồn dữ liệu để chọn file.', warn:true};
+      return null;
+    }
     const sh = sheets[settings.src];
     if (sh.loading) return {t:'Đang tải từ vựng từ Google…', warn:false};
     if (!sheetUrl(settings.src)) return {t:'Chưa có link ' + SRC_NAMES[settings.src] + '. Giáo viên bấm bánh răng → Nguồn dữ liệu để dán link.', warn:true};
@@ -775,17 +792,17 @@ h2:focus{outline:none}
     const note = sourceNotice();
     if (note){ info.textContent = note.t; if (note.warn) info.classList.add('warn'); }
     else {
-      const n = vocabWords().length, sh = sheets[settings.src];
+      const n = vocabWords().length, sh = settings.src === 'off' ? null : sheets[settings.src];
       const where = (usesHsk() ? (Number(k.hsk) ? 'HSK ' + k.hsk : 'Chưa phân cấp') : SRC_NAMES[settings.src]) + ' · ' +
         (k.lesson === 'all' ? 'tất cả các bài' : lm.get(k.lesson).label);
       info.textContent = n ? where + ': ' + n + ' từ.' : 'Chưa có từ trong lựa chọn này.';
-      if (n < 5 || sh.fromCache) info.classList.add('warn');
-      if (sh.fromCache && n) info.textContent += ' Đang dùng bản đã lưu lúc ' + fmtTime(sh.at) + ' (không tải được bản mới).';
+      if (n < 5 || (sh && sh.fromCache)) info.classList.add('warn');
+      if (sh && sh.fromCache && n) info.textContent += ' Đang dùng bản đã lưu lúc ' + fmtTime(sh.at) + ' (không tải được bản mới).';
     }
     updateBest();
   }
   function afterVocabChange(){ saveSettings(); $('#setupMsg').textContent = ''; renderVocab(); }
-  $('#selSrc').addEventListener('change', e => { settings.src = SRC_IDS.includes(e.target.value) ? e.target.value : 'hsk'; afterVocabChange(); ensureSheet(settings.src); });
+  $('#selSrc').addEventListener('change', e => { settings.src = ALL_SRC.includes(e.target.value) ? e.target.value : 'hsk'; afterVocabChange(); if (settings.src !== 'off') ensureSheet(settings.src); });
   $('#selHsk').addEventListener('change', e => { curPick().hsk = Number(e.target.value); curPick().lesson = 'all'; afterVocabChange(); });
   $('#selLesson').addEventListener('change', e => { curPick().lesson = e.target.value; afterVocabChange(); });
 
@@ -793,9 +810,9 @@ h2:focus{outline:none}
   const newSheet = () => ({rows:[], at:0, skipped:0, hidden:0, err:'', loading:false, fromCache:false, loadedUrl:null, seq:0});
   const sheets = {hsk:newSheet(), cd:newSheet()};
   const COLS = {
-    hsk:['hsk','cap','cap hsk','level','trinh do'], bai:['bai','lesson','nhom'],
-    hanzi:['hanzi','chu han','han tu','chinese'], pinyin:['pinyin','phien am'],
-    nghia:['nghia','y nghia','meaning'], ma:['ma','id','code'], vidu:['vidu','vi du','example'], hien:['hien','an hien','show','visible'], doc:['doc','cach doc','doc la','tts','read']
+    hsk:['hsk','cap','cap hsk','level','trinh do'], bai:['bai','lesson','nhom','bai hoc'],
+    hanzi:['hanzi','chu han','han tu','chinese','tieng trung','tu vung','tu'], pinyin:['pinyin','phien am'],
+    nghia:['nghia','y nghia','meaning','tieng viet','nghia tieng viet'], ma:['ma','id','code'], vidu:['vidu','vi du','example'], hien:['hien','an hien','show','visible'], doc:['doc','cach doc','doc la','tts','read']
   };
   const normKey = x => String(x == null ? '' : x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -828,15 +845,24 @@ h2:focus{outline:none}
     return rows;
   }
 
-  function sheetFromCSV(text){
-    const t = parseCSV(text);
+  function sheetFromCSV(text){ return sheetFromTable(parseCSV(text)); }
+  // Bảng 2 chiều → từ vựng. Hàng tiêu đề có thể không ở hàng 1 (vd. có dòng tiêu đề lớn phía trên): tìm trong 10 hàng đầu.
+  function sheetFromTable(t){
     if (!t.length) throw new Error('Bảng trống.');
-    const head = t[0].map(normKey), idx = {};
-    Object.keys(COLS).forEach(k => { idx[k] = head.findIndex(h => COLS[k].includes(h)); });
-    const missing = ['hanzi','pinyin','nghia'].filter(k => idx[k] < 0);
-    if (missing.length) throw new Error('Thiếu cột: ' + missing.join(', ') + '. Hàng 1 phải là tiêu đề: hsk, bai, hanzi, pinyin, nghia, ma, vidu, hien.');
+    let hr = -1, idx = {};
+    for (let i = 0; i < Math.min(10, t.length) && hr < 0; i++){
+      const head = (t[i] || []).map(normKey), x = {};
+      Object.keys(COLS).forEach(k => { x[k] = head.findIndex(h => COLS[k].includes(h)); });
+      if (x.hanzi >= 0 && x.pinyin >= 0 && x.nghia >= 0){ hr = i; idx = x; }
+    }
+    if (hr < 0){
+      const head = (t[0] || []).map(normKey);
+      Object.keys(COLS).forEach(k => { idx[k] = head.findIndex(h => COLS[k].includes(h)); });
+      const missing = ['hanzi','pinyin','nghia'].filter(k => idx[k] < 0);
+      throw new Error('Thiếu cột: ' + missing.join(', ') + '. Hàng tiêu đề cần có: hsk, bai, hanzi, pinyin, nghia (có thể thêm ma, vidu, hien, doc).');
+    }
     const rows = []; let skipped = 0, hidden = 0;
-    t.slice(1).forEach(r => {
+    t.slice(hr + 1).forEach(r => {
       if (!r.some(c => String(c).trim() !== '')) return;
       const cell = k => (idx[k] >= 0 && r[idx[k]] != null) ? String(r[idx[k]]).trim() : '';
       const h = cell('hanzi'), p = cell('pinyin'), v = cell('nghia');
@@ -844,8 +870,164 @@ h2:focus{outline:none}
       if (['false','0','no','n','an','khong'].includes(normKey(cell('hien')))){ hidden++; return; }
       rows.push({hsk:cell('hsk'), bai:cell('bai'), h, p, v, id:cell('ma') || h, d:cell('doc')});
     });
-    return {rows, skipped, hidden};
+    return {rows, skipped, hidden, hasBai:idx.bai >= 0};
   }
+
+  /* ---------- Đọc file Excel .xlsx ngay trên máy (không cần mạng, không cần thư viện ngoài) ---------- */
+  async function readXlsx(buf){
+    const dv = new DataView(buf), u8 = new Uint8Array(buf), dec = new TextDecoder('utf-8');
+    if (u8[0] === 0xD0 && u8[1] === 0xCF) throw new Error('Đây là file Excel cũ (.xls). Hãy mở bằng Excel → Lưu thành → Excel Workbook (.xlsx) rồi chọn lại.');
+    let eocd = -1;
+    for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--){ if (dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; } }
+    if (eocd < 0) throw new Error('Không đọc được file. Hãy chọn file Excel dạng .xlsx.');
+    const count = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true);
+    const entries = {};
+    for (let k = 0; k < count && dv.getUint32(p, true) === 0x02014b50; k++){
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+      const nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+      entries[dec.decode(u8.subarray(p + 46, p + 46 + nlen)).replace(/^\//, '')] = {method, csize, off};
+      p += 46 + nlen + elen + clen;
+    }
+    async function text(name){
+      const e = entries[name]; if (!e) return null;
+      const start = e.off + 30 + dv.getUint16(e.off + 26, true) + dv.getUint16(e.off + 28, true);
+      const data = u8.subarray(start, start + e.csize);
+      if (e.method === 0) return dec.decode(data);
+      if (e.method !== 8 || typeof DecompressionStream === 'undefined') throw new Error('Trình duyệt này không giải nén được file Excel. Hãy cập nhật trình duyệt hoặc dùng file .csv.');
+      const out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+      return dec.decode(out);
+    }
+    const xml = s => new DOMParser().parseFromString(s, 'application/xml');
+    const all = (node, tag) => Array.from(node.getElementsByTagNameNS('*', tag));
+    const wb = await text('xl/workbook.xml');
+    if (!wb) throw new Error('Không phải file Excel .xlsx hợp lệ.');
+    const sheetsList = all(xml(wb), 'sheet').map(sh => ({name:sh.getAttribute('name') || '', rid:sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || sh.getAttribute('r:id')}));
+    const relsDoc = await text('xl/_rels/workbook.xml.rels');
+    const rels = {};
+    if (relsDoc) all(xml(relsDoc), 'Relationship').forEach(r => { rels[r.getAttribute('Id')] = r.getAttribute('Target'); });
+    const ss = [];
+    const ssText = await text('xl/sharedStrings.xml');
+    if (ssText) all(xml(ssText), 'si').forEach(si => {
+      ss.push(all(si, 't').filter(t => !t.parentNode || t.parentNode.localName !== 'rPh').map(t => t.textContent).join(''));
+    });
+    const colIdx = ref => { let n = 0; for (const ch of String(ref).replace(/[0-9]/g, '')) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
+    async function readSheet(sh){
+      let target = rels[sh.rid] || '';
+      target = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+      const sx = await text(target);
+      if (!sx) return [];
+      const table = [];
+      all(xml(sx), 'row').forEach(row => {
+        const rn = parseInt(row.getAttribute('r'), 10) - 1, cells = [];
+        all(row, 'c').forEach((c, i) => {
+          const type = c.getAttribute('t'), ref = c.getAttribute('r'), ci = ref ? colIdx(ref) : i;
+          const v = all(c, 'v')[0];
+          let val = '';
+          if (type === 's') val = v ? (ss[parseInt(v.textContent, 10)] || '') : '';
+          else if (type === 'inlineStr') val = all(c, 't').map(t => t.textContent).join('');
+          else if (type === 'b') val = v && v.textContent === '1' ? 'TRUE' : 'FALSE';
+          else val = v ? v.textContent : '';
+          if (/^-?\d+\.0+$/.test(val)) val = val.replace(/\.0+$/, '');
+          cells[ci] = val;
+        });
+        for (let j = 0; j < cells.length; j++) if (cells[j] === undefined) cells[j] = '';
+        table[isNaN(rn) ? table.length : rn] = cells;
+      });
+      for (let i = 0; i < table.length; i++) if (!table[i]) table[i] = [];
+      return table;
+    }
+    // Ưu tiên tab có tên chứa "tu vung"; nếu tab đó không đọc được từ thì thử lần lượt các tab khác.
+    const order = sheetsList.slice().sort((a, b) => (/tu ?vung/.test(normKey(b.name)) ? 1 : 0) - (/tu ?vung/.test(normKey(a.name)) ? 1 : 0));
+    let firstErr = null, empty = null;
+    for (const sh of order){
+      try{ const d = sheetFromTable(await readSheet(sh)); if (d.rows.length) return Object.assign(d, {sheet:sh.name}); if (!empty) empty = d; }
+      catch(e){ if (!firstErr) firstErr = e; }
+    }
+    if (empty) return Object.assign(empty, {sheet:''});   // có bảng đúng cột nhưng chưa có từ (hoặc toàn từ ẩn)
+    throw firstErr || new Error('Không tìm thấy dòng từ vựng hợp lệ trong file.');
+  }
+
+  // Giáo trình CĐ Offline: các file đã nạp được lưu trên máy (localStorage) để lần sau mở không cần chọn lại.
+  const offline = {files:[], rows:[]};
+  function rebuildOffline(){
+    offline.rows = [];
+    offline.files.forEach(f => f.rows.forEach(r => {
+      const bai = f.hasBai && String(r.bai || '').trim() ? r.bai : f.lesson;
+      offline.rows.push(prepRow(Object.assign({}, r, {bai}), 'off'));
+    }));
+  }
+  function saveOffline(){
+    try{ localStorage.setItem('zhwhack.offline', JSON.stringify(offline.files)); return true; }
+    catch(e){ return false; }
+  }
+  (function restoreOffline(){
+    const f = store.get('zhwhack.offline', []);
+    if (Array.isArray(f)) offline.files = f.filter(x => x && Array.isArray(x.rows));
+    rebuildOffline();
+  })();
+  async function addOfflineFiles(list){
+    const msgs = []; let added = 0;
+    for (const file of list){
+      try{
+        if (file.size > 5 * 1024 * 1024) throw new Error('file quá lớn (tối đa 5 MB)');
+        const lower = file.name.toLowerCase();
+        let d;
+        if (lower.endsWith('.csv')){
+          const t = await file.text();
+          if (t.indexOf('�') >= 0) throw new Error('file CSV không phải mã UTF-8');
+          d = sheetFromCSV(t);
+        } else d = await readXlsx(await file.arrayBuffer());
+        if (!d.rows.length) throw new Error('không có dòng từ vựng hợp lệ' + (d.hidden ? ' (' + d.hidden + ' từ đang ẩn)' : ''));
+        const lesson = file.name.replace(/\.[^.]+$/, '').trim() || 'Bài';
+        const entry = {name:file.name, at:Date.now(), hasBai:!!d.hasBai, lesson, rows:d.rows, skipped:d.skipped, hidden:d.hidden};
+        const i = offline.files.findIndex(x => x.name === file.name);
+        if (i >= 0) offline.files[i] = entry; else offline.files.push(entry);
+        added++;
+        let m = '"' + file.name + '": ' + d.rows.length + ' từ' + (d.hasBai ? '' : ' (1 bài: ' + lesson + ')');
+        if (d.skipped) m += ', bỏ qua ' + d.skipped + ' dòng thiếu dữ liệu';
+        if (d.hidden) m += ', ' + d.hidden + ' từ ẩn';
+        msgs.push(m);
+      }catch(e){ msgs.push('"' + file.name + '": lỗi – ' + ((e && e.message) || 'không đọc được')); }
+    }
+    rebuildOffline();
+    const saved = saveOffline();
+    if (!saved) msgs.push('Không lưu được trên máy (bộ nhớ trình duyệt đầy) – lần sau mở cần chọn lại file.');
+    return {added, text:msgs.join(' · ')};
+  }
+  function renderOfflineBox(){
+    const ul = $('#offList');
+    ul.innerHTML = offline.files.map((f, i) => {
+      const lessons = f.hasBai ? new Set(f.rows.map(r => String(r.bai || '').trim() || f.lesson)).size + ' bài' : '1 bài';
+      return '<li><span>' + esc(f.name) + '<small>' + f.rows.length + ' từ · ' + lessons + ' · nạp lúc ' + fmtTime(f.at) + '</small></span>' +
+        '<button type="button" class="btn ghost small" data-off-del="' + i + '">Xóa</button></li>';
+    }).join('');
+    $('#offClear').hidden = !offline.files.length;
+    if (!offline.files.length && !$('#offStatus').textContent) setStatus('#offStatus', 'Chưa nạp file nào.');
+  }
+  $('#offFile').addEventListener('change', async e => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setStatus('#offStatus', 'Đang đọc file…');
+    const r = await addOfflineFiles(files);
+    e.target.value = '';
+    setStatus('#offStatus', r.text, r.added < files.length);
+    renderOfflineBox(); renderVocab();
+  });
+  $('#offList').addEventListener('click', e => {
+    const b = e.target.closest('[data-off-del]'); if (!b) return;
+    const f = offline.files[Number(b.dataset.offDel)]; if (!f) return;
+    if (!confirm('Xóa file "' + f.name + '" khỏi Giáo trình CĐ Offline?')) return;
+    offline.files.splice(Number(b.dataset.offDel), 1);
+    rebuildOffline(); saveOffline();
+    setStatus('#offStatus', 'Đã xóa "' + f.name + '".');
+    renderOfflineBox(); renderVocab();
+  });
+  $('#offClear').addEventListener('click', () => {
+    if (!offline.files.length || !confirm('Xóa tất cả ' + offline.files.length + ' file đã nạp?')) return;
+    offline.files = []; rebuildOffline(); saveOffline();
+    setStatus('#offStatus', 'Đã xóa tất cả file.');
+    renderOfflineBox(); renderVocab();
+  });
 
   function sheetUrl(id){ return (queryLink(id) || settings.links[id] || SHEET_LINKS[id] || '').trim(); }
   // Nhận 3 loại link và đổi về địa chỉ tải CSV:
@@ -1693,6 +1875,7 @@ h2:focus{outline:none}
 
   function openSettings(){
     $('#lbClearStatus').textContent = '';
+    $('#offStatus').textContent = ''; renderOfflineBox();
     loadVoices(); renderVoiceOpts(settings.voice);
     $('#stMusicVol').value = String(settings.musicVol); $('#stSfxVol').value = String(settings.sfxVol);
     $('#stRate').value = String(clampRate(settings.rate));
@@ -1951,13 +2134,14 @@ h2:focus{outline:none}
   });
 
   $('#startBtn').addEventListener('click', () => {
-    if (sheets[settings.src].loading){
+    if (settings.src !== 'off' && sheets[settings.src].loading){
       $('#setupMsg').textContent = 'Đang tải từ vựng, bạn chờ một chút rồi bấm lại.';
       return;
     }
     const words = getWords();
     if (words.length < 5){
-      $('#setupMsg').textContent = !sheetUrl(settings.src) ? 'Chưa có link ' + SRC_NAMES[settings.src] + '. Giáo viên bấm bánh răng → Nguồn dữ liệu để dán link.'
+      $('#setupMsg').textContent = settings.src === 'off' && !offline.files.length ? 'Chưa có file Excel cho Giáo trình CĐ Offline. Giáo viên bấm bánh răng → Nguồn dữ liệu để chọn file.'
+        : settings.src !== 'off' && !sheetUrl(settings.src) ? 'Chưa có link ' + SRC_NAMES[settings.src] + '. Giáo viên bấm bánh răng → Nguồn dữ liệu để dán link.'
         : 'Cần ít nhất 5 từ. Hãy chọn ' + (usesHsk() ? 'cấp HSK hoặc ' : '') + 'bài khác, hoặc kiểm tra lại nguồn dữ liệu trong Cài đặt.';
       return;
     }
@@ -1981,7 +2165,7 @@ h2:focus{outline:none}
   });
 
   syncSetup();
-  ensureSheet(settings.src);
+  if (settings.src !== 'off') ensureSheet(settings.src);
   SRC_IDS.forEach(id => { if (id !== settings.src) ensureSheet(id); });
 })();
 </script>
