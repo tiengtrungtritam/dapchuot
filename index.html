@@ -753,7 +753,20 @@ h2:focus{outline:none}
     if (!sh.rows.length && !sh.at) return {t:'Đang chờ tải từ vựng…', warn:false};
     return null;
   }
+  const srcHasData = id => id === 'off' ? offline.files.length > 0 : !!sheetUrl(id);
+  function paintSrcOptions(){
+    Array.from($('#selSrc').options).forEach(o => {
+      const ok = srcHasData(o.value);
+      o.disabled = !ok;
+      o.textContent = SRC_NAMES[o.value] + (ok ? '' : ' (chưa có dữ liệu)');
+    });
+    if (!srcHasData(settings.src)){
+      const alt = ALL_SRC.find(srcHasData);
+      if (alt) settings.src = alt;
+    }
+  }
   function renderVocab(){
+    paintSrcOptions();
     const info = $('#vocabInfo'), hs = $('#selHsk'), ls = $('#selLesson'), k = curPick();
     $('#selSrc').value = settings.src;
     $('#hskWrap').hidden = !usesHsk();
@@ -763,8 +776,9 @@ h2:focus{outline:none}
     let inLevel = rows;
     hs.textContent = '';
     if (usesHsk()){
-      const cnt = new Map();
-      rows.forEach(r => cnt.set(r.hsk, (cnt.get(r.hsk) || 0) + 1));
+      const sets = new Map();
+      rows.forEach(r => { if (!sets.has(r.hsk)) sets.set(r.hsk, new Set()); sets.get(r.hsk).add(r.h); });
+      const cnt = new Map(Array.from(sets, ([lv, st]) => [lv, st.size]));
       for (let n = 1; n <= 9; n++) addOpt(hs, String(n), 'HSK ' + n + (cnt.get(n) ? ' (' + cnt.get(n) + ' từ)' : ' (chưa có từ)'), !cnt.get(n));
       if (cnt.get(0)) addOpt(hs, '0', 'Chưa phân cấp (' + cnt.get(0) + ' từ)', false);
       if (rows.length && !cnt.get(Number(k.hsk))){
@@ -775,13 +789,14 @@ h2:focus{outline:none}
       hs.value = String(k.hsk);
       inLevel = rows.filter(r => r.hsk === Number(k.hsk));
     }
-    const lm = new Map();
+    const lm = new Map(), allH = new Set();
     inLevel.forEach(r => {
-      const e = lm.get(r.lk) || {key:r.lk, label:r.ll, num:r.ln, n:0};
-      e.n++; lm.set(r.lk, e);
+      const e = lm.get(r.lk) || {key:r.lk, label:r.ll, num:r.ln, hs:new Set()};
+      e.hs.add(r.h); allH.add(r.h); lm.set(r.lk, e);
     });
+    lm.forEach(e => { e.n = e.hs.size; });
     const lessons = Array.from(lm.values()).sort((a, b) => a.num - b.num || a.label.localeCompare(b.label));
-    const total = lessons.reduce((t, l) => t + l.n, 0);
+    const total = allH.size;
     ls.textContent = '';
     addOpt(ls, 'all', 'Tất cả (' + total + ' từ)', !lessons.length);
     lessons.forEach(l => addOpt(ls, l.key, l.label + ' (' + l.n + ' từ)', false));
