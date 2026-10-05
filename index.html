@@ -122,7 +122,47 @@ dialog input[type=url]:focus-visible,dialog input[type=password]:focus-visible,d
 dialog input[type=file]{width:100%;font:14px var(--ui);color:var(--ink);padding:8px;border:1px dashed var(--line);border-radius:10px;background:var(--field)}
 dialog .sel select{width:100%}
 #pwDlg{width:min(360px,calc(100% - 24px))}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sr{position:absolute!important;width:1px;height:1px;padding:0;margin:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+/* dòng thông tin bộ từ chỉ hiện khi có cảnh báo (chưa có link, lỗi tải, quá ít từ…) */
+#vocabInfo:not(.warn){display:none}
+.opts i{font-style:normal}
+.sm{display:none}
+.msg:empty{display:none}
+/* Điện thoại: gọn màn Chuẩn bị để vừa một màn hình, không phải cuộn */
+@media (max-width:600px){
+  .lg{display:none} .sm{display:inline}
+  .top{margin-bottom:8px}
+  .logo img{width:112px}
+  .app{padding-top:6px}
+  #setup{padding:10px 12px}
+  #setupTitle{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .sel select{padding:7px 6px;font-size:14px}
+  #vocabSet .sel[style]{margin-bottom:6px!important}
+  fieldset.seg{margin:0 0 8px;display:flow-root}
+  fieldset.seg legend{float:left;width:66px;margin:0;padding:0;line-height:32px;font-size:13.5px}
+  fieldset.seg .opts{flex-wrap:nowrap;gap:5px}
+  fieldset.seg .opts label{flex:1 1 0;min-width:0}
+  fieldset.seg .opts span{padding:6px 4px;text-align:center;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #vocabSet{display:block}
+  fieldset.seg:nth-of-type(2) legend{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .checks{flex-wrap:nowrap;justify-content:space-between;gap:0 8px;margin:2px 0 8px}
+  .checks .check{font-size:13.5px;margin:0;gap:6px}
+  .check input{width:17px;height:17px}
+  .pname{margin:0 0 8px} .pname .pn-l{display:none}
+  .pname input{padding:8px 12px}
+  #startBtn{padding:8px 16px}
+  #bestNote,#scoreNote{display:none}
+  .locknote{font-size:12px;padding:6px 10px;margin-bottom:8px}
+  .foot{padding-top:4px} .foot-logo{max-height:28px}
+}
+@media (max-width:359px){
+  fieldset.seg legend{width:60px;font-size:12px;white-space:nowrap}
+  fieldset.seg .opts span{font-size:12px;padding:6px 2px}
+  fieldset.seg:nth-of-type(2) .opts span{font-size:11.5px}
+  .checks{gap:0 4px}
+  .checks .check{font-size:12px;gap:4px;white-space:nowrap}
+  .sel select{font-size:13px;padding:7px 4px}
+}
 .pane{margin-top:10px}
 .srcbox{margin:0 0 10px}
 .offlist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
@@ -396,15 +436,15 @@ h2:focus{outline:none}
 
     <div class="sgroups">
     <fieldset class="seg" id="vocabSet">
-      <legend>Bộ từ vựng</legend>
-      <label class="sel" style="margin-bottom:8px"><span>Giáo trình</span><select id="selSrc">
+      <legend class="sr">Bộ từ vựng</legend>
+      <label class="sel" style="margin-bottom:8px"><span class="sr">Giáo trình</span><select id="selSrc">
         <option value="hsk">Giáo trình HSK</option>
         <option value="cd">Giáo trình CĐ</option>
         <option value="off">Giáo trình CĐ Offline</option>
       </select></label>
       <div class="selrow" id="selRow">
-        <label class="sel" id="hskWrap"><span>Cấp HSK</span><select id="selHsk"></select></label>
-        <label class="sel"><span>Bài</span><select id="selLesson"></select></label>
+        <label class="sel" id="hskWrap"><span class="sr">Cấp HSK</span><select id="selHsk"></select></label>
+        <label class="sel"><span class="sr">Bài</span><select id="selLesson"></select></label>
       </div>
       <p class="status" id="vocabInfo" role="status"></p>
     </fieldset>
@@ -412,9 +452,9 @@ h2:focus{outline:none}
     <fieldset class="seg">
       <legend>Cách chơi</legend>
       <div class="opts">
-        <label><input type="radio" name="mode" value="vi2han"><span>Nghĩa → chữ Hán</span></label>
-        <label><input type="radio" name="mode" value="py2han"><span>Pinyin → chữ Hán</span></label>
-        <label><input type="radio" name="mode" value="han2vi"><span>Chữ Hán → nghĩa</span></label>
+        <label><input type="radio" name="mode" value="vi2han"><span><i class="lg">Nghĩa → chữ Hán</i><i class="sm">Nghĩa → Hán</i></span></label>
+        <label><input type="radio" name="mode" value="py2han"><span><i class="lg">Pinyin → chữ Hán</i><i class="sm">Pinyin → Hán</i></span></label>
+        <label><input type="radio" name="mode" value="han2vi"><span><i class="lg">Chữ Hán → nghĩa</i><i class="sm">Hán → Nghĩa</i></span></label>
       </div>
     </fieldset>
 
@@ -436,13 +476,13 @@ h2:focus{outline:none}
     </div>
 
     <div class="checks">
-      <label class="check"><input type="checkbox" id="speak"> Đọc to chữ Hán khi đập đúng</label>
+      <label class="check"><input type="checkbox" id="speak"> <span class="lg">Đọc to chữ Hán khi đập đúng</span><span class="sm">Đọc to</span></label>
       <label class="check"><input type="checkbox" id="optMusic"> Nhạc nền</label>
-      <label class="check"><input type="checkbox" id="optSfx"> Âm thanh hiệu ứng</label>
+      <label class="check"><input type="checkbox" id="optSfx"> <span class="lg">Âm thanh hiệu ứng</span><span class="sm">Hiệu ứng</span></label>
     </div>
 
     <p class="locknote" id="lockNote" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Bộ từ vựng, cách chơi, tốc độ và thời gian đang được khóa để mọi người thi cùng điều kiện. Giáo viên mở khóa trong Cài đặt.</span></p>
-    <label class="pname"><span>Tên người chơi</span><input type="text" id="playerName" maxlength="24" placeholder="Nhập tên để lưu điểm vào bảng xếp hạng" autocomplete="off" spellcheck="false"></label>
+    <label class="pname"><span class="pn-l">Tên người chơi</span><input type="text" id="playerName" maxlength="24" placeholder="Tên người chơi (để lưu điểm)" aria-label="Tên người chơi" autocomplete="off" spellcheck="false"></label>
 
     <button type="button" class="btn wide" id="startBtn">Bắt đầu</button>
     <p class="msg" id="setupMsg" role="alert"></p>
