@@ -1,0 +1,17 @@
+{
+  "name": "Đập Chuột – Tiếng Trung Tri Tâm",
+  "short_name": "Đập Chuột",
+  "description": "Game luyện từ vựng tiếng Trung vui nhộn – Tiếng Trung Tri Tâm",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FDEACA",
+  "theme_color": "#FDEACA",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
