@@ -760,7 +760,7 @@ h2:focus{outline:none}
   }
   $('#soundBtn').addEventListener('click', () => {
     settings.muted = !settings.muted; saveSettings(); paintMute();
-    sound.unlock(); sound.applyVolumes();
+    sound.unlock(true); sound.applyVolumes();
     if (settings.muted) try{ speechSynthesis.cancel(); }catch(e){}
   });
   paintMute();
@@ -1487,11 +1487,12 @@ h2:focus{outline:none}
   // để "mở khóa" giọng đọc; sau đó game mới đọc được khi đập chuột.
   let speechPrimed = false, curUtter = null;
   function primeSpeech(){
-    if (speechPrimed) return;
+    if (speechPrimed || !settings.speak || settings.muted) return;
     try{
       if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
       const u = new SpeechSynthesisUtterance(' ');
       u.volume = 0; u.lang = 'zh-CN';
+      u.onend = u.onerror = () => { try{ sound.speechEnded(); }catch(e){} };
       curUtter = u;
       speechSynthesis.speak(u);
       speechPrimed = true;
@@ -1501,7 +1502,7 @@ h2:focus{outline:none}
   // Đọc to bằng giọng của thiết bị. Trả về true nếu bắt đầu đọc; gọi done() khi đọc xong (hoặc lỗi).
   function speak(text, done, opt){
     let fin = false;
-    const finish = () => { if (!fin){ fin = true; if (done) done(); } };
+    const finish = () => { try{ sound.speechEnded(); }catch(e){} if (!fin){ fin = true; if (done) done(); } };
     try{
       if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return false;
       const u = new SpeechSynthesisUtterance(text);
@@ -1571,6 +1572,8 @@ h2:focus{outline:none}
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       try{ ac = new AC(); }catch(e){ ac = null; return null; }
+      // iPhone: khi đọc to, iOS chiếm kênh âm thanh và chuyển bộ âm thanh sang "interrupted" → phải đánh thức lại
+      try{ ac.addEventListener('statechange', () => { if (ac && ac.state !== 'running' && ac.state !== 'closed') setTimeout(wake, 60); }); }catch(e){}
       comp = ac.createDynamicsCompressor();
       comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
       comp.connect(ac.destination);
@@ -1584,7 +1587,49 @@ h2:focus{outline:none}
       applyVolumes();
       return ac;
     }
-    function unlock(){ if (ensure() && ac.state === 'suspended') ac.resume().catch(() => {}); }
+    const isSpeaking = () => { try{ return !!(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)); }catch(e){ return false; } };
+    function revive(){
+      if (!ac || ac.state === 'running' || ac.state === 'closed') return;
+      try{ const p = ac.resume(); if (p && p.catch) p.catch(() => {}); }catch(e){}
+    }
+    // Thử đánh thức nhiều lần (sau khi đọc xong iOS mới trả lại kênh âm thanh)
+    let waking = false, broken = false, quietAt = 0, stuckAtDown = false;
+    function speechEnded(){ quietAt = performance.now(); wake(); }
+    function wake(){
+      if (waking) return;                // đang có một vòng đánh thức rồi
+      waking = true;
+      let n = 0;
+      const tick = () => {
+        if (!ac || ac.state === 'running' || ac.state === 'closed'){ waking = false; return; }
+        if (n++ > 12){ waking = false; if (!isSpeaking()) broken = true; return; }
+        revive(); setTimeout(tick, 250);
+      };
+      setTimeout(tick, 0);
+    }
+    // Bộ âm thanh hỏng hẳn (không đánh thức được dù người dùng đã chạm): tạo bộ mới
+    function rebuild(){
+      try{ ac.close(); }catch(e){}
+      ac = null; noiseBuf = null;
+      if (musOn){ musOn = false; clearInterval(timer); }   // syncMusic() sẽ tự bật lại nhạc trên bộ mới
+      const wasDucked = ducked;
+      ducked = false;
+      if (ensure() && wasDucked) duck(true);
+    }
+    // Lần chạm này đánh thức không được → đánh dấu; lần chạm sau tạo bộ mới ngay trong thao tác chạm (iPhone yêu cầu)
+    let fixT = 0;
+    // act = true khi là thao tác iPhone coi là chạm thật (nhấc ngón tay, bấm, gõ phím): chỉ khi đó mới tạo bộ mới
+    function unlock(act){
+      if (!ensure()) return;
+      if (ac.state === 'running'){ broken = false; stuckAtDown = false; return; }
+      // Kiểm tra lúc ngón tay chạm xuống (trước khi cú đập kịp bắt đầu một lần đọc mới):
+      // đã đọc xong một lúc mà vẫn "interrupted" → coi là hỏng
+      const stuckNow = !isSpeaking() && (broken || (ac.state === 'interrupted' && performance.now() - quietAt > 600));
+      if (!act){ stuckAtDown = stuckNow; revive(); return; }
+      if (stuckAtDown || stuckNow){ broken = false; stuckAtDown = false; rebuild(); revive(); return; }
+      revive();
+      clearTimeout(fixT);
+      fixT = setTimeout(() => { if (ac && ac.state !== 'running' && ac.state !== 'closed' && !isSpeaking() && !document.hidden) broken = true; }, 700);
+    }
     function applyVolumes(){
       if (!ac) return;
       const t = ac.currentTime, m = settings.muted ? 0 : 1;
@@ -1699,13 +1744,12 @@ h2:focus{outline:none}
       duckG.gain.setTargetAtTime(on ? 0.2 : 1, ac.currentTime, 0.08);
     }
     function resetMusic(){ step = 0; hurry = false; }
-    return {unlock, applyVolumes, fx, music, duck, resetMusic, setHurry(v){ hurry = !!v; }, get on(){ return musOn; }};
+    return {unlock, wake, speechEnded, applyVolumes, fx, music, duck, resetMusic, setHurry(v){ hurry = !!v; }, get on(){ return musOn; }};
   })();
-  ['pointerdown', 'keydown', 'touchend'].forEach(ev => document.addEventListener(ev, () => sound.unlock(), {capture:true, passive:true}));
+  document.addEventListener('pointerdown', () => sound.unlock(false), {capture:true, passive:true});
+  ['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, () => sound.unlock(true), {capture:true, passive:true}));
   // Mở khóa giọng đọc ở những thao tác iPhone coi là "chạm thật" (bấm nút, nhấc ngón tay, gõ phím)
   ['click', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, primeSpeech, {capture:true, passive:true}));
-  // iPhone (iOS 17+): cho phép phát âm thanh/giọng đọc kể cả khi gạt nút im lặng
-  try{ if (navigator.audioSession) navigator.audioSession.type = 'playback'; }catch(e){}
   // Nhạc chỉ phát khi đang chơi thật (không mở hộp thoại, không bị ẩn thẻ); tự kiểm tra 4 lần/giây.
   function syncMusic(){
     const play = !!(G && G.running && !hiddenPause && !document.hidden && !anyDialogOpen() && settings.music && !settings.muted);
