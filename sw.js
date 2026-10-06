@@ -1,7 +1,7 @@
 /* Đập Chuột – lưu game trên máy để mở được cả khi không có mạng.
    Trang game: ưu tiên bản mới trên mạng (có mạng là cập nhật ngay), mất mạng thì dùng bản đã lưu.
    Hình ảnh/biểu tượng: dùng bản đã lưu. Dữ liệu Google Sheets không đi qua đây (game tự lưu riêng). */
-const CACHE = 'dapchuot-v1';
+const CACHE = 'dapchuot-v2';
 const CORE = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png', './icon-512.png',
   './icon-maskable-512.png', './apple-touch-icon.png'];
 

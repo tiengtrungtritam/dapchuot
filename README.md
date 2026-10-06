@@ -1,7 +1,8 @@
-# Đập Chuột – Tiếng Trung Tri Tâm
+# Đập Chuột – Tiếng Trung Trí Tâm
 
-Game đập chuột luyện từ vựng tiếng Trung (Giáo trình HSK và Giáo trình CĐ).
-Toàn bộ game nằm trong một file `index.html`; từ vựng lấy từ Google Sheets.
+Game đập chuột luyện từ vựng tiếng Trung (Giáo trình HSK và Giáo trình Offline).
+Toàn bộ game nằm trong một file `index.html`. Giáo trình HSK lấy từ Google Sheets;
+Giáo trình Offline là file Excel giáo viên nạp trên máy (bánh răng → Cài đặt).
 
 ## 1. Đưa game lên GitHub Pages
 
@@ -22,15 +23,15 @@ Toàn bộ game nằm trong một file `index.html`; từ vựng lấy từ Goog
 Để học viên mở game là có từ vựng ngay, không cần cài đặt:
 
 1. Trong Google Sheets: **Tệp → Chia sẻ → Phát hành lên web** → chọn đúng tab
-   (`TuVung_HSK` hoặc `TuVung_CD`) → định dạng **CSV** → **Phát hành** → sao chép link.
+   (`TuVung_HSK`) → định dạng **CSV** → **Phát hành** → sao chép link.
 2. Trên GitHub, mở `index.html` → bấm biểu tượng bút chì (**Edit**).
 3. Nhấn Ctrl+F tìm `SHEET_LINKS`, sửa dòng:
    ```js
-   const SHEET_LINKS = {hsk:'', cd:''};
+   const SHEET_LINKS = {hsk:''};
    ```
    thành (dán link giữa hai dấu nháy đơn):
    ```js
-   const SHEET_LINKS = {hsk:'https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv', cd:'https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv'};
+   const SHEET_LINKS = {hsk:'https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv'};
    ```
 4. Bấm **Commit changes**. Sau 1–2 phút game cập nhật.
 
@@ -41,7 +42,7 @@ Link dán trong Cài đặt chỉ lưu trên máy đang dùng.
 ## 3. Cập nhật
 
 - **Thêm/sửa từ vựng:** sửa trực tiếp trong Google Sheets, không cần đụng tới GitHub.
-  Game lấy bản mới mỗi lần mở (hoặc bấm "Tải lại cả hai" trong Cài đặt).
+  Game lấy bản mới mỗi lần mở (hoặc bấm "Tải lại" trong Cài đặt).
 - **Cập nhật game:** tải `index.html` mới lên đè file cũ (**Add file → Upload files**).
   Nhớ dán lại link vào `SHEET_LINKS` nếu file mới chưa có.
 
@@ -50,3 +51,4 @@ Link dán trong Cài đặt chỉ lưu trên máy đang dùng.
 - Phần Cài đặt cần mật khẩu giáo viên (giữ nguyên như bản đang dùng).
 - Bảng xếp hạng chỉ lưu trong lần mở game trên máy đó (đóng thẻ là mất).
 - Giọng đọc lấy từ trình duyệt; giọng tốt nhất trên Microsoft Edge hoặc Chrome.
+- Giáo trình Offline: file Excel mẫu `Mau_TuVung_Offline.xlsx`; file đã nạp chỉ lưu trên máy đó.

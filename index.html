@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>Đập Chuột – Tiếng Trung Tri Tâm</title>
-<meta name="description" content="Game luyện từ vựng tiếng Trung vui nhộn: đập đúng chữ Hán, nhớ từ nhanh. Giáo trình HSK và Giáo trình CĐ – Tiếng Trung Tri Tâm.">
+<meta name="description" content="Game luyện từ vựng tiếng Trung vui nhộn: đập đúng chữ Hán, nhớ từ nhanh. Giáo trình HSK và Giáo trình Offline – Tiếng Trung Tri Tâm.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Tiếng Trung Tri Tâm">
 <meta property="og:title" content="Đập Chuột – Game luyện từ vựng tiếng Trung">
-<meta property="og:description" content="Đập đúng chữ Hán · nhớ từ nhanh · học mà chơi. Giáo trình HSK và Giáo trình CĐ – Tiếng Trung Tri Tâm.">
+<meta property="og:description" content="Đập đúng chữ Hán · nhớ từ nhanh · học mà chơi. Giáo trình HSK và Giáo trình Offline – Tiếng Trung Tri Tâm.">
 <meta property="og:url" content="https://tiengtrungtritam.github.io/dapchuot/">
 <meta property="og:image" content="https://tiengtrungtritam.github.io/dapchuot/thumbnail.jpg">
 <meta property="og:image:secure_url" content="https://tiengtrungtritam.github.io/dapchuot/thumbnail.jpg">
@@ -440,8 +440,7 @@ h2:focus{outline:none}
       <legend class="sr">Bộ từ vựng</legend>
       <label class="sel" style="margin-bottom:8px"><span class="sr">Giáo trình</span><select id="selSrc">
         <option value="hsk">Giáo trình HSK</option>
-        <option value="cd">Giáo trình CĐ</option>
-        <option value="off">Giáo trình CĐ Offline</option>
+        <option value="off">Giáo trình Offline</option>
       </select></label>
       <div class="selrow" id="selRow">
         <label class="sel" id="hskWrap"><span class="sr">Cấp HSK</span><select id="selHsk"></select></label>
@@ -552,20 +551,15 @@ h2:focus{outline:none}
         <input type="url" id="urlHsk" placeholder="https://docs.google.com/spreadsheets/…" autocomplete="off" spellcheck="false"></label>
       <p class="status" id="statHsk" role="status"></p>
     </div>
-    <div class="srcbox">
-      <label class="sl2" style="grid-template-columns:1fr"><span><b>Giáo trình CĐ</b> — chỉ chọn Bài</span>
-        <input type="url" id="urlCd" placeholder="https://docs.google.com/spreadsheets/…" autocomplete="off" spellcheck="false"></label>
-      <p class="status" id="statCd" role="status"></p>
-    </div>
     <div class="srow">
-      <button type="button" class="btn ghost small" id="sheetReload">Tải lại cả hai</button>
+      <button type="button" class="btn ghost small" id="sheetReload">Tải lại</button>
       <button type="button" class="btn ghost small" id="copyShare">Sao chép địa chỉ chia sẻ cho học viên</button>
     </div>
     <p class="note" id="sheetUrlNote">Cách tốt nhất: Google Sheets → Tệp → Chia sẻ → Phát hành lên web → chọn đúng tab, định dạng CSV, rồi dán link vào đây. Link chia sẻ thường ("Bất kỳ ai có đường liên kết") của Google Sheet hoặc file CSV trên Drive cũng được, nhưng Google đôi khi chặn tải trực tiếp.</p>
-    <p class="note">Hàng 1 là tiêu đề cột. Giáo trình HSK: <b>hsk, bai, hanzi, pinyin, nghia</b>. Giáo trình CĐ: <b>bai, hanzi, pinyin, nghia</b>. Có thể thêm: ma, vidu, hien (ghi 0 để ẩn từ), doc (cụm từ để máy đọc thay chữ Hán, dùng cho chữ đa âm, vd. 行 → 银行).</p>
+    <p class="note">Hàng 1 là tiêu đề cột. Giáo trình HSK: <b>hsk, bai, hanzi, pinyin, nghia</b>. Có thể thêm: ma, vidu, hien (ghi 0 để ẩn từ), doc (cụm từ để máy đọc thay chữ Hán, dùng cho chữ đa âm, vd. 行 → 银行).</p>
     <p class="note">Link chỉ lưu trên máy này. Để mọi máy học viên dùng chung, bấm "Sao chép địa chỉ chia sẻ" rồi gửi địa chỉ đó cho học viên.</p>
 
-    <h3>Giáo trình CĐ Offline (file Excel trên máy)</h3>
+    <h3>Giáo trình Offline (file Excel trên máy)</h3>
     <p class="note" style="margin:0 0 8px">Chọn file .xlsx (hoặc .csv) trên máy này. Không cần mạng. File có cột <b>bai</b> thì game tách theo bài; file không có cột bai thì cả file là một bài, lấy tên file làm tên bài. Có thể chọn nhiều file cùng lúc. Nạp lại file trùng tên sẽ thay bản cũ.</p>
     <input type="file" id="offFile" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" multiple aria-label="Chọn file Excel">
     <p class="status" id="offStatus" role="status"></p>
@@ -654,14 +648,14 @@ h2:focus{outline:none}
   /* ---------- Thông số có thể chỉnh trong Cài đặt ---------- */
   const DEFAULT_PARAMS = {
     speeds:{
-      slow:   {spawn:1200, stay:3000, max:2, target:13000},
-      normal: {spawn:850,  stay:2200, max:3, target:9500},
-      fast:   {spawn:600,  stay:1650, max:4, target:7000}
+      slow:   {spawn:1100, stay:2500, max:3, target:12000},
+      normal: {spawn:800,  stay:1900, max:3, target:9000},
+      fast:   {spawn:500,  stay:1400, max:4, target:7000}
     },
     score:{correct:10, bonus:2, bonusCap:10, penalty:5},
     other:{answerMax:3, hintAt:50, holdMin:900},
     times:[30, 60, 90],
-    rev:4
+    rev:6
   };
   const clone = o => JSON.parse(JSON.stringify(o));
   const getP = (o, path) => path.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
@@ -677,10 +671,8 @@ h2:focus{outline:none}
       });
     })(out, over);
     if (rev < 4) out.other.answerMax = DEFAULT_PARAMS.other.answerMax;   // bản lưu cũ: đáp án ngẫu nhiên con 1–3
-    if (rev < 3){   // bản lưu cũ: áp dụng thời gian chuột ở trên mặt đất mới (chậm 3.0 / vừa 2.2 / nhanh 1.65 giây)
-      ['slow', 'normal', 'fast'].forEach(k => { out.speeds[k].stay = DEFAULT_PARAMS.speeds[k].stay; });
-    }
-    out.rev = 4;
+    if (rev < 6) out.speeds = clone(DEFAULT_PARAMS.speeds);   // bộ tốc độ chuẩn mới (10/2026): áp dụng cho mọi máy
+    out.rev = 6;
     return out;
   }
   let params = mergeParams(store.get('zhwhack.params', null));
@@ -688,20 +680,21 @@ h2:focus{outline:none}
 
 
   // Khi đưa game lên GitHub: dán link CSV đã "Phát hành lên web" của từng giáo trình vào đây để mọi máy dùng chung.
-  // (Hoặc mở trang với ?hsk=<link>&cd=<link>; link dán trong Cài đặt chỉ lưu trên máy đó.)
-  const SHEET_LINKS = {hsk:'https://docs.google.com/spreadsheets/d/e/2PACX-1vSMCvpLbhNmhi_s1t13bATS_9SIWPzEdT0lPg8zq2Pla_xLJm10TqlcFfq4CE73IiN5smgWKgxEJR3L/pub?gid=99431854&single=true&output=csv', cd:''};
-  const SRC_IDS = ['hsk', 'cd'];                 // nguồn Google (có link)
-  const ALL_SRC = ['hsk', 'cd', 'off'];          // off = Giáo trình CĐ Offline (file Excel trên máy)
-  const SRC_NAMES = {hsk:'Giáo trình HSK', cd:'Giáo trình CĐ', off:'Giáo trình CĐ Offline'};
-  const DEFAULTS = {src:'hsk', links:{hsk:'', cd:''}, pick:{hsk:{hsk:1, lesson:'all'}, cd:{lesson:'all'}, off:{lesson:'all'}},
+  // (Hoặc mở trang với ?hsk=<link>; link dán trong Cài đặt chỉ lưu trên máy đó.)
+  const SHEET_LINKS = {hsk:'https://docs.google.com/spreadsheets/d/e/2PACX-1vSMCvpLbhNmhi_s1t13bATS_9SIWPzEdT0lPg8zq2Pla_xLJm10TqlcFfq4CE73IiN5smgWKgxEJR3L/pub?gid=99431854&single=true&output=csv'};
+  const SRC_IDS = ['hsk'];                       // nguồn Google (có link)
+  const ALL_SRC = ['hsk', 'off'];                // off = Giáo trình Offline (file Excel trên máy)
+  const SRC_NAMES = {hsk:'Giáo trình HSK', off:'Giáo trình Offline'};
+  try{ localStorage.removeItem('zhwhack.sheetcache.cd'); }catch(e){}   // dọn dữ liệu của Giáo trình CĐ (đã bỏ)
+  const DEFAULTS = {src:'hsk', links:{hsk:''}, pick:{hsk:{hsk:1, lesson:'all'}, off:{lesson:'all'}},
     mode:'vi2han', speed:'slow', time:30, speak:true, voice:'', rate:0.85, music:true, sfx:true, musicVol:50, sfxVol:80, muted:false};
   const storedSettings = store.get('zhwhack.settings', {});
   let settings = Object.assign({}, DEFAULTS, storedSettings);
   // Bản lưu cũ (chưa có v:2): đặt lại tốc độ = chậm, thời gian = 30 giây theo mặc định mới
   if (storedSettings.v !== 2){ settings.speed = DEFAULTS.speed; settings.time = DEFAULTS.time; }
   settings.v = 2;
-  settings.links = Object.assign({hsk:'', cd:''}, settings.links);
-  settings.pick = {hsk:Object.assign({hsk:1, lesson:'all'}, settings.pick && settings.pick.hsk), cd:Object.assign({lesson:'all'}, settings.pick && settings.pick.cd), off:Object.assign({lesson:'all'}, settings.pick && settings.pick.off)};
+  settings.links = {hsk:(settings.links && settings.links.hsk) || ''};
+  settings.pick = {hsk:Object.assign({hsk:1, lesson:'all'}, settings.pick && settings.pick.hsk), off:Object.assign({lesson:'all'}, settings.pick && settings.pick.off)};
   if (storedSettings.sheetUrl && !settings.links.hsk) settings.links.hsk = storedSettings.sheetUrl;   // bản cũ chỉ có 1 link
   ['set', 'sheetUrl', 'lessons', 'hsk', 'lesson'].forEach(k => delete settings[k]);
   if (!ALL_SRC.includes(settings.src)) settings.src = 'hsk';
@@ -803,7 +796,7 @@ h2:focus{outline:none}
   }
   function sourceNotice(){
     if (settings.src === 'off'){
-      if (!offline.files.length) return {t:'Chưa có file Excel cho Giáo trình CĐ Offline. Giáo viên bấm bánh răng → Nguồn dữ liệu để chọn file.', warn:true};
+      if (!offline.files.length) return {t:'Chưa có file Excel cho Giáo trình Offline. Giáo viên bấm bánh răng → Nguồn dữ liệu để chọn file.', warn:true};
       return null;
     }
     const sh = sheets[settings.src];
@@ -881,9 +874,9 @@ h2:focus{outline:none}
   $('#selHsk').addEventListener('change', e => { curPick().hsk = Number(e.target.value); curPick().lesson = 'all'; afterVocabChange(); });
   $('#selLesson').addEventListener('change', e => { curPick().lesson = e.target.value; afterVocabChange(); });
 
-  /* ---------- Nguồn dữ liệu: 2 link Google Drive (Giáo trình HSK, Giáo trình CĐ) ---------- */
+  /* ---------- Nguồn dữ liệu: link Google Drive của Giáo trình HSK ---------- */
   const newSheet = () => ({rows:[], at:0, skipped:0, hidden:0, err:'', loading:false, fromCache:false, loadedUrl:null, seq:0});
-  const sheets = {hsk:newSheet(), cd:newSheet()};
+  const sheets = {hsk:newSheet()};
   const COLS = {
     hsk:['hsk','cap','cap hsk','level','trinh do'], bai:['bai','lesson','nhom','bai hoc'],
     hanzi:['hanzi','chu han','han tu','chinese','tieng trung','tu vung','tu'], pinyin:['pinyin','phien am'],
@@ -1022,7 +1015,7 @@ h2:focus{outline:none}
     throw firstErr || new Error('Không tìm thấy dòng từ vựng hợp lệ trong file.');
   }
 
-  // Giáo trình CĐ Offline: các file đã nạp được lưu trên máy (localStorage) để lần sau mở không cần chọn lại.
+  // Giáo trình Offline: các file đã nạp được lưu trên máy (localStorage) để lần sau mở không cần chọn lại.
   const offline = {files:[], rows:[]};
   function rebuildOffline(){
     offline.rows = [];
@@ -1091,7 +1084,7 @@ h2:focus{outline:none}
   $('#offList').addEventListener('click', e => {
     const b = e.target.closest('[data-off-del]'); if (!b) return;
     const f = offline.files[Number(b.dataset.offDel)]; if (!f) return;
-    if (!confirm('Xóa file "' + f.name + '" khỏi Giáo trình CĐ Offline?')) return;
+    if (!confirm('Xóa file "' + f.name + '" khỏi Giáo trình Offline?')) return;
     offline.files.splice(Number(b.dataset.offDel), 1);
     rebuildOffline(); saveOffline();
     setStatus('#offStatus', 'Đã xóa "' + f.name + '".');
@@ -1183,7 +1176,7 @@ h2:focus{outline:none}
   function setStatus(sel, text, warn){ const el = $(sel); el.textContent = text; el.className = 'status' + (warn ? ' warn' : ''); }
   function paintSheetStatus(){
     SRC_IDS.forEach(id => {
-      const sh = sheets[id], sel = id === 'hsk' ? '#statHsk' : '#statCd';
+      const sh = sheets[id], sel = '#statHsk';
       if (sh.loading) return setStatus(sel, 'Đang tải từ vựng…');
       if (!sheetUrl(id)) return setStatus(sel, 'Chưa có link.', true);
       if (sh.err) return setStatus(sel, sh.err, true);
@@ -2085,7 +2078,7 @@ h2:focus{outline:none}
     $('#stRate').value = String(clampRate(settings.rate));
     fillForm(params);
     SRC_IDS.forEach(id => {
-      const inp = $(id === 'hsk' ? '#urlHsk' : '#urlCd'), q = queryLink(id);
+      const inp = $('#urlHsk'), q = queryLink(id);
       inp.value = q || settings.links[id] || SHEET_LINKS[id] || '';
       inp.disabled = !!q;
       inp.title = q ? 'Đang dùng link trong địa chỉ trang (?' + id + '=…)' : '';
@@ -2099,7 +2092,7 @@ h2:focus{outline:none}
   $('#cancelSt').addEventListener('click', () => dlg.close());
   dlg.addEventListener('click', e => {
     if (e.target.id !== 'copyShare') return;
-    const val = id => ($(id === 'hsk' ? '#urlHsk' : '#urlCd').value || '').trim() || sheetUrl(id);
+    const val = id => ($('#urlHsk').value || '').trim() || sheetUrl(id);
     const note = $('#sheetUrlNote');
     const parts = SRC_IDS.filter(id => val(id)).map(id => id + '=' + encodeURIComponent(val(id)));
     if (!parts.length){ note.textContent = 'Hãy dán ít nhất một link phía trên trước.'; return; }
@@ -2111,11 +2104,11 @@ h2:focus{outline:none}
   $('#saveSt').addEventListener('click', () => {
     const newLinks = {};
     for (const id of SRC_IDS){
-      const inp = $(id === 'hsk' ? '#urlHsk' : '#urlCd');
+      const inp = $('#urlHsk');
       if (inp.disabled){ newLinks[id] = settings.links[id]; continue; }
       const u = (inp.value || '').trim();
       const bad = u ? normalizeSheetUrl(u).error : '';
-      if (bad){ setStatus(id === 'hsk' ? '#statHsk' : '#statCd', bad, true); inp.focus(); return; }
+      if (bad){ setStatus('#statHsk', bad, true); inp.focus(); return; }
       newLinks[id] = u;
     }
     params = readForm();
@@ -2384,7 +2377,7 @@ h2:focus{outline:none}
     }
     const words = getWords();
     if (words.length < 5){
-      $('#setupMsg').textContent = settings.src === 'off' && !offline.files.length ? 'Chưa có file Excel cho Giáo trình CĐ Offline. Giáo viên bấm bánh răng → Nguồn dữ liệu để chọn file.'
+      $('#setupMsg').textContent = settings.src === 'off' && !offline.files.length ? 'Chưa có file Excel cho Giáo trình Offline. Giáo viên bấm bánh răng → Nguồn dữ liệu để chọn file.'
         : settings.src !== 'off' && !sheetUrl(settings.src) ? 'Chưa có link ' + SRC_NAMES[settings.src] + '. Giáo viên bấm bánh răng → Nguồn dữ liệu để dán link.'
         : 'Cần ít nhất 5 từ. Hãy chọn ' + (usesHsk() ? 'cấp HSK hoặc ' : '') + 'bài khác, hoặc kiểm tra lại nguồn dữ liệu trong Cài đặt.';
       return;
