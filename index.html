@@ -649,13 +649,13 @@ h2:focus{outline:none}
   const DEFAULT_PARAMS = {
     speeds:{
       slow:   {spawn:1100, stay:2500, max:3, target:12000},
-      normal: {spawn:800,  stay:1900, max:3, target:9000},
+      normal: {spawn:700,  stay:1900, max:3, target:9000},
       fast:   {spawn:500,  stay:1400, max:4, target:7000}
     },
     score:{correct:10, bonus:2, bonusCap:10, penalty:5},
     other:{answerMax:3, hintAt:50, holdMin:900},
     times:[30, 60, 90],
-    rev:6
+    rev:7
   };
   const clone = o => JSON.parse(JSON.stringify(o));
   const getP = (o, path) => path.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
@@ -672,7 +672,8 @@ h2:focus{outline:none}
     })(out, over);
     if (rev < 4) out.other.answerMax = DEFAULT_PARAMS.other.answerMax;   // bản lưu cũ: đáp án ngẫu nhiên con 1–3
     if (rev < 6) out.speeds = clone(DEFAULT_PARAMS.speeds);   // bộ tốc độ chuẩn mới (10/2026): áp dụng cho mọi máy
-    out.rev = 6;
+    else if (rev < 7 && out.speeds.normal.spawn === 800) out.speeds.normal.spawn = DEFAULT_PARAMS.speeds.normal.spawn;   // Vừa: 0.8 → 0.7 giây
+    out.rev = 7;
     return out;
   }
   let params = mergeParams(store.get('zhwhack.params', null));
